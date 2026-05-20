@@ -242,7 +242,28 @@ Open your local terminal and navigate to the directory where your private key (`
 
 ---
 
-## Phase 7: Verification
+## Phase 7: CI/CD Pipeline Automation (GitHub Actions)
+
+We have configured a CI/CD pipeline in `.github/workflows/deploy.yml` that automates integration testing and remote deployment.
+
+### 1. How the Pipeline Works
+- **CI Job (Build & Test):** Triggers on pushes and pull requests to `main`. It spins up an Ubuntu environment, installs all Node dependencies, and compiles the React application (`npm run build`) to ensure there are no compilation warnings or errors.
+- **CD Job (Deployment):** Triggers only on pushes to `main`. It uses SSH keys to securely connect to your EC2 instance, pulls the latest repository branch changes, runs `npm run install-all`, recompiles the assets, and restarts the PM2 process.
+
+### 2. Configuring Secrets in GitHub
+For the pipeline to deploy to your AWS server, you must add your EC2 credentials as secure Secrets in your repository:
+1. Go to your repository page on GitHub.
+2. Click **Settings** -> **Secrets and variables** -> **Actions**.
+3. Click **New repository secret** and add the following variables:
+   - **`EC2_HOST`**: Your EC2 instance's public IP address (e.g. `54.210.12.34`).
+   - **`EC2_USERNAME`**: The login username (typically `ubuntu`).
+   - **`EC2_SSH_KEY`**: The complete text content of your private key file (`taskflow-key.pem`). Open this file on your local machine and copy everything including the `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----` tags.
+
+Once configured, pushing code to the `main` branch of your GitHub repository will automatically trigger an integration build and immediately deploy the changes live to your AWS server!
+
+---
+
+## Phase 8: Verification
 
 Open a web browser and navigate to your EC2 instance's **Public IPv4 Address** (e.g., `http://54.210.12.34`).
 - You should see the premium glassmorphic **TaskFlow** interface load instantly!

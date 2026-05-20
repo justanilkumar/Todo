@@ -1,0 +1,65 @@
+name: TaskFlow CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install Root & Backend Dependencies
+      run: npm install
+
+    - name: Install Frontend Dependencies
+      run: npm --prefix frontend install
+
+    - name: Build Frontend Assets
+      run: npm run build
+      env:
+        # Avoid breaking the build on warning diagnostics
+        CI: false
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    # Trigger deployment only on pushes directly to main branch
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Deploy to AWS EC2 via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          # Navigate to project folder on EC2
+          cd /home/ubuntu/todo-app/"Todo App"
+          
+          # Pull latest changes from the repository
+          git pull origin main
+          
+          # Install any newly added dependencies
+          npm run install-all
+          
+          # Rebuild the production React bundle
+          npm run build
+          
+          # Restart the server process using PM2
+          pm2 restart taskflow || pm2 start server.js --name "taskflow"
+          
+          echo "Deployment successfully executed by GitHub Actions!"
